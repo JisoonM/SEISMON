@@ -1,0 +1,21 @@
+fastapi==0.136.3
+uvicorn[standard]==0.30.1
+sqlalchemy[asyncio]==2.0.30
+asyncpg==0.29.0
+pydantic-settings==2.3.4
+redis==5.0.5
+celery[redis]==5.4.0
+httpx==0.27.0
+httpx2==2.3.0
+python-socketio==5.16.2
+aiohttp==3.14.1
+beautifulsoup4==4.13.4
+shapely==2.0.4
+geopy==2.4.1
+tenacity==9.1.2
+slowapi==0.1.9
+firebase-admin==6.5.0
+python-telegram-bot==21.3
+pytest==9.0.3
+pytest-asyncio==1.3.0
+# Semaphore SMS is sent through its REST API with httpx in Phase 5.
