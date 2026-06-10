@@ -10,5 +10,9 @@ body {
   margin: 0;
   background: #0a0f1e;
   color: #f1f5f9;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
+* {
+  box-sizing: border-box;
+}

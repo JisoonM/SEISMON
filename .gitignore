@@ -22,6 +22,7 @@ coverage/
 .turbo/
 .vercel/
 .npm-cache/
+.vitest-cache/
 
 # Environment and secrets
 .env
