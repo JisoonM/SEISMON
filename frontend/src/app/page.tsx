@@ -17,13 +17,18 @@ import { useDashboardStore } from "@/store/dashboardStore";
 export default function DashboardPage() {
   const { earthquakes, summary, isLoading, error } = useEarthquakeData();
   const { isConnected, events: socketEvents, lastEvent, connectionError } = useEarthquakeSocket();
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const historicalMode = useDashboardStore((state) => state.historicalMode);
   const setHistoricalMode = useDashboardStore((state) => state.setHistoricalMode);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
+    const updateClock = () => setNow(new Date());
+    const firstTick = window.setTimeout(updateClock, 0);
+    const timer = window.setInterval(updateClock, 1000);
+    return () => {
+      window.clearTimeout(firstTick);
+      window.clearInterval(timer);
+    };
   }, []);
 
   const events = useMemo(() => {
@@ -51,7 +56,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3">
             <Clock3 aria-hidden className="h-4 w-4 text-cyan-300" />
-            <span>{formatPhtTime(now)}</span>
+            <span>{now ? formatPhtTime(now) : "--:--:--"}</span>
             <span className="text-xs text-muted">PHT</span>
           </span>
           <span className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3">
