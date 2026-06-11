@@ -32,14 +32,14 @@ async def lifespan(app: FastAPI):
     try:
         await check_database()
         logger.info("database startup check ok")
-    except Exception:
-        logger.exception("database startup check failed")
+    except Exception as exc:
+        logger.warning("database startup check failed: %s", exc)
     redis = create_redis_client()
     try:
         await redis.ping()
         logger.info("redis startup check ok")
-    except Exception:
-        logger.exception("redis startup check failed")
+    except Exception as exc:
+        logger.warning("redis startup check failed: %s", exc)
     finally:
         await redis.aclose()
     app.state.redis_listener_task = asyncio.create_task(websocket.redis_listener())

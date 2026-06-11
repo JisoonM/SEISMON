@@ -34,7 +34,7 @@ class Settings(BaseSettings):
         "https://www.seismicportal.eu/fdsnws/event/1/query"
     )
 
-    cors_origins: Annotated[str, Field(alias="CORS_ORIGINS")] = "http://localhost:3000"
+    cors_origins: Annotated[str, Field(alias="CORS_ORIGINS")] = "http://localhost:3000,http://127.0.0.1:3000"
     frontend_url: Annotated[str, Field(alias="FRONTEND_URL")] = "http://localhost:3000"
 
     firebase_credentials_json: Annotated[str | None, Field(alias="FIREBASE_CREDENTIALS_JSON")] = None

@@ -69,21 +69,21 @@ async def redis_listener() -> None:
                 await broadcast_redis_message(str(message.get("data")))
     except asyncio.CancelledError:
         raise
-    except Exception:
-        logger.exception("Redis Socket.IO listener stopped unexpectedly")
+    except Exception as exc:
+        logger.warning("Redis Socket.IO listener disabled because Redis is unavailable: %s", exc)
     finally:
         try:
             await pubsub.unsubscribe("eq:new_event")
-        except Exception:
-            logger.exception("Redis Socket.IO listener unsubscribe failed")
+        except Exception as exc:
+            logger.warning("Redis Socket.IO listener unsubscribe skipped: %s", exc)
         try:
             await pubsub.aclose()
-        except Exception:
-            logger.exception("Redis Socket.IO listener pubsub cleanup failed")
+        except Exception as exc:
+            logger.warning("Redis Socket.IO listener pubsub cleanup skipped: %s", exc)
         try:
             await redis.aclose()
-        except Exception:
-            logger.exception("Redis Socket.IO listener client cleanup failed")
+        except Exception as exc:
+            logger.warning("Redis Socket.IO listener client cleanup skipped: %s", exc)
 
 
 async def heartbeat_loop() -> None:
@@ -100,6 +100,7 @@ async def hydrate_recent_events(sid: str) -> None:
                 EarthquakeRead.model_validate(event).model_dump(mode="json")
                 for event in result.scalars().all()
             ]
-        await sio.emit("earthquake:hydrate", events, to=sid)
-    except Exception:
-        logger.exception("Failed to hydrate Socket.IO client")
+    except Exception as exc:
+        logger.warning("Socket.IO hydrate returned empty events because database is unavailable: %s", exc)
+        events = []
+    await sio.emit("earthquake:hydrate", events, to=sid)

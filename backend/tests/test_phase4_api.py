@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import Settings
 from app.database import get_db
 from app.main import app
 from app.redis_client import create_redis_client
@@ -103,6 +104,47 @@ def test_earthquake_rest_endpoints(monkeypatch) -> None:
         app.dependency_overrides.clear()
 
 
+def test_dashboard_api_endpoints_degrade_when_database_is_unavailable(monkeypatch) -> None:
+    async def failing_query(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise OSError("database connection refused")
+
+    monkeypatch.setattr(earthquakes_router, "list_earthquakes", failing_query)
+    monkeypatch.setattr(earthquakes_router, "get_summary_stats", failing_query)
+    monkeypatch.setattr(earthquakes_router, "get_heatmap_points", failing_query)
+    monkeypatch.setattr(earthquakes_router, "get_province_counts", failing_query)
+
+    app.dependency_overrides[get_db] = fake_db
+    try:
+        client = TestClient(app, raise_server_exceptions=False)
+
+        response = client.get("/api/v1/earthquakes")
+        assert response.status_code == 200
+        assert response.json() == {"items": [], "total": 0, "page": 1, "page_size": 100}
+
+        summary = client.get("/api/v1/earthquakes/stats/summary")
+        assert summary.status_code == 200
+        assert summary.json()["total_today"] == 0
+        assert summary.json()["most_affected_province"] is None
+
+        heatmap = client.get("/api/v1/earthquakes/stats/heatmap")
+        assert heatmap.status_code == 200
+        assert heatmap.json() == []
+
+        provinces = client.get("/api/v1/provinces")
+        assert provinces.status_code == 200
+        assert provinces.json() == []
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_default_cors_origins_include_localhost_and_loopback() -> None:
+    settings = Settings(_env_file=None)
+    origins = {origin.strip() for origin in settings.cors_origins.split(",")}
+
+    assert "http://localhost:3000" in origins
+    assert "http://127.0.0.1:3000" in origins
+
+
 def test_health_endpoint_reports_db_and_redis_ok(monkeypatch) -> None:
     async def fake_check_db() -> bool:
         return True
@@ -179,3 +221,25 @@ async def test_redis_listener_cleanup_does_not_raise_when_redis_is_down(monkeypa
     monkeypatch.setattr(websocket_router, "create_redis_client", lambda: FailingRedis())
 
     await websocket_router.redis_listener()
+
+
+@pytest.mark.asyncio
+async def test_socket_hydration_emits_empty_events_when_database_is_down(monkeypatch) -> None:
+    emitted = []
+
+    class FailingSession:
+        async def __aenter__(self):
+            raise OSError("database unavailable")
+
+        async def __aexit__(self, exc_type, exc, tb):  # noqa: ANN001
+            return None
+
+    async def fake_emit(event, payload, to=None):  # noqa: ANN001
+        emitted.append((event, payload, to))
+
+    monkeypatch.setattr(websocket_router, "async_session", lambda: FailingSession())
+    monkeypatch.setattr(websocket_router.sio, "emit", fake_emit)
+
+    await websocket_router.hydrate_recent_events("sid-1")
+
+    assert emitted == [("earthquake:hydrate", [], "sid-1")]
